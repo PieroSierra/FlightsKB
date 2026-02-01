@@ -25,11 +25,11 @@
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Initialize Vite React TypeScript project in console/ with `npm create vite@latest console -- --template react-ts`
-- [ ] T002 Install Backpack dependencies: @skyscanner/backpack-web, @skyscanner/bpk-foundations-web in console/package.json
-- [ ] T003 [P] Install routing dependency: react-router-dom in console/package.json
-- [ ] T004 [P] Configure Vite for GitHub Pages deployment in console/vite.config.ts (set base path)
-- [ ] T005 [P] Create TypeScript interfaces from data-model.md in console/src/types/index.ts
+- [x] T001 Initialize Vite React TypeScript project in console/ with `npm create vite@latest console -- --template react-ts`
+- [x] T002 Install Backpack dependencies: @skyscanner/backpack-web, @skyscanner/bpk-foundations-web in console/package.json
+- [x] T003 [P] Install routing dependency: react-router-dom in console/package.json
+- [x] T004 [P] Configure Vite for GitHub Pages deployment in console/vite.config.ts (set base path)
+- [x] T005 [P] Create TypeScript interfaces from data-model.md in console/src/types/index.ts
 
 ---
 
@@ -39,13 +39,13 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T006 Add CORS middleware to FastAPI backend in src/api/app.py (allow GitHub Pages origin)
-- [ ] T007 Create API client service with configurable base URL in console/src/services/api.ts
-- [ ] T008 [P] Create Layout component with navigation header in console/src/components/Layout.tsx
-- [ ] T009 [P] Create ErrorBanner component for API error display in console/src/components/ErrorBanner.tsx
-- [ ] T010 Setup React Router with 4 routes (/, /ingest, /stats, /admin) in console/src/App.tsx
-- [ ] T011 Create main entry point with BrowserRouter in console/src/main.tsx
-- [ ] T012 [P] Create index.html with Backpack CSS imports in console/index.html
+- [x] T006 Add CORS middleware to FastAPI backend in src/api/app.py (allow GitHub Pages origin)
+- [x] T007 Create API client service with configurable base URL in console/src/services/api.ts
+- [x] T008 [P] Create Layout component with navigation header in console/src/components/Layout.tsx
+- [x] T009 [P] Create ErrorBanner component for API error display in console/src/components/ErrorBanner.tsx
+- [x] T010 Setup React Router with 4 routes (/, /ingest, /stats, /admin) in console/src/App.tsx
+- [x] T011 Create main entry point with BrowserRouter in console/src/main.tsx
+- [x] T012 [P] Create index.html with Backpack CSS imports in console/index.html
 
 **Checkpoint**: Foundation ready - user story implementation can now begin
 
@@ -59,13 +59,13 @@
 
 ### Implementation for User Story 1
 
-- [ ] T013 [P] [US1] Implement query() function in API client in console/src/services/api.ts
-- [ ] T014 [P] [US1] Create SearchForm component with text input and k selector in console/src/components/SearchForm.tsx
-- [ ] T015 [P] [US1] Create ResultCard component displaying chunk text, score, and metadata in console/src/components/ResultCard.tsx
-- [ ] T016 [US1] Create QueryPage with search form, results list, and loading state in console/src/pages/QueryPage.tsx
-- [ ] T017 [US1] Add result detail modal showing full metadata (applies_to, confidence, source) in console/src/pages/QueryPage.tsx
-- [ ] T018 [US1] Add error handling for API unavailable state with user-friendly message in console/src/pages/QueryPage.tsx
-- [ ] T019 [US1] Add "no results found" empty state display in console/src/pages/QueryPage.tsx
+- [x] T013 [P] [US1] Implement query() function in API client in console/src/services/api.ts
+- [x] T014 [P] [US1] Create SearchForm component with text input and k selector in console/src/components/SearchForm.tsx
+- [x] T015 [P] [US1] Create ResultCard component displaying chunk text, score, and metadata in console/src/components/ResultCard.tsx
+- [x] T016 [US1] Create QueryPage with search form, results list, and loading state in console/src/pages/QueryPage.tsx
+- [x] T017 [US1] Add result detail modal showing full metadata (applies_to, confidence, source) in console/src/pages/QueryPage.tsx
+- [x] T018 [US1] Add error handling for API unavailable state with user-friendly message in console/src/pages/QueryPage.tsx
+- [x] T019 [US1] Add "no results found" empty state display in console/src/pages/QueryPage.tsx
 
 **Checkpoint**: Query functionality fully operational - can search and view results independently
 
@@ -79,20 +79,20 @@
 
 ### Backend Extension for User Story 2
 
-- [ ] T020 [US2] Add /ingest POST endpoint to FastAPI backend in src/api/routes.py
-- [ ] T021 [US2] Add request/response models for IngestRequest, IngestResponse in src/api/routes.py
-- [ ] T022 [US2] Implement base64 decoding for file content in /ingest endpoint in src/api/routes.py
-- [ ] T023 [US2] Add file size validation (100KB text, 5MB files) in src/api/routes.py
+- [x] T020 [US2] Add /ingest POST endpoint to FastAPI backend in src/api/routes.py
+- [x] T021 [US2] Add request/response models for IngestRequest, IngestResponse in src/api/routes.py
+- [x] T022 [US2] Implement base64 decoding for file content in /ingest endpoint in src/api/routes.py
+- [x] T023 [US2] Add file size validation (100KB text, 5MB files) in src/api/routes.py
 
 ### Frontend Implementation for User Story 2
 
-- [ ] T024 [P] [US2] Implement ingest() function in API client in console/src/services/api.ts
-- [ ] T025 [P] [US2] Create TextIngestForm component with textarea in console/src/components/TextIngestForm.tsx
-- [ ] T026 [P] [US2] Create FileUploadForm component accepting .txt, .pdf, .html, .htm in console/src/components/FileUploadForm.tsx
-- [ ] T027 [US2] Create IngestPage with tab toggle between text and file modes in console/src/pages/IngestPage.tsx
-- [ ] T028 [US2] Add success confirmation showing kb_id and file_path in console/src/pages/IngestPage.tsx
-- [ ] T029 [US2] Add error handling for parse failures and size limits in console/src/pages/IngestPage.tsx
-- [ ] T030 [US2] Add file type validation on client-side before upload in console/src/components/FileUploadForm.tsx
+- [x] T024 [P] [US2] Implement ingest() function in API client in console/src/services/api.ts
+- [x] T025 [P] [US2] Create TextIngestForm component with textarea in console/src/components/TextIngestForm.tsx
+- [x] T026 [P] [US2] Create FileUploadForm component accepting .txt, .pdf, .html, .htm in console/src/components/FileUploadForm.tsx
+- [x] T027 [US2] Create IngestPage with tab toggle between text and file modes in console/src/pages/IngestPage.tsx
+- [x] T028 [US2] Add success confirmation showing kb_id and file_path in console/src/pages/IngestPage.tsx
+- [x] T029 [US2] Add error handling for parse failures and size limits in console/src/pages/IngestPage.tsx
+- [x] T030 [US2] Add file type validation on client-side before upload in console/src/components/FileUploadForm.tsx
 
 **Checkpoint**: Ingest functionality complete - can add content via text or file upload independently
 
@@ -106,12 +106,12 @@
 
 ### Implementation for User Story 3
 
-- [ ] T031 [P] [US3] Implement getStats() function in API client in console/src/services/api.ts
-- [ ] T032 [P] [US3] Create StatsDisplay component with summary cards in console/src/components/StatsDisplay.tsx
-- [ ] T033 [P] [US3] Create BreakdownTable component for category breakdowns in console/src/components/BreakdownTable.tsx
-- [ ] T034 [US3] Create StatsPage with stats display and auto-refresh in console/src/pages/StatsPage.tsx
-- [ ] T035 [US3] Add empty state message for zero documents in console/src/pages/StatsPage.tsx
-- [ ] T036 [US3] Add loading skeleton while stats fetching in console/src/pages/StatsPage.tsx
+- [x] T031 [P] [US3] Implement getStats() function in API client in console/src/services/api.ts
+- [x] T032 [P] [US3] Create StatsDisplay component with summary cards in console/src/components/StatsDisplay.tsx
+- [x] T033 [P] [US3] Create BreakdownTable component for category breakdowns in console/src/components/BreakdownTable.tsx
+- [x] T034 [US3] Create StatsPage with stats display and auto-refresh in console/src/pages/StatsPage.tsx
+- [x] T035 [US3] Add empty state message for zero documents in console/src/pages/StatsPage.tsx
+- [x] T036 [US3] Add loading skeleton while stats fetching in console/src/pages/StatsPage.tsx
 
 **Checkpoint**: Stats page complete - can view knowledge base health independently
 
@@ -125,13 +125,13 @@
 
 ### Implementation for User Story 4
 
-- [ ] T037 [P] [US4] Implement rebuild() function in API client in console/src/services/api.ts
-- [ ] T038 [P] [US4] Create RebuildButton component with loading state in console/src/components/RebuildButton.tsx
-- [ ] T039 [P] [US4] Create RebuildSummary component showing results in console/src/components/RebuildSummary.tsx
-- [ ] T040 [US4] Create AdminPage with rebuild action and results display in console/src/pages/AdminPage.tsx
-- [ ] T041 [US4] Add progress indicator during rebuild operation in console/src/pages/AdminPage.tsx
-- [ ] T042 [US4] Add error handling for rebuild failures with details in console/src/pages/AdminPage.tsx
-- [ ] T043 [US4] Add rebuild-in-progress state blocking concurrent rebuilds in console/src/pages/AdminPage.tsx
+- [x] T037 [P] [US4] Implement rebuild() function in API client in console/src/services/api.ts
+- [x] T038 [P] [US4] Create RebuildButton component with loading state in console/src/components/RebuildButton.tsx
+- [x] T039 [P] [US4] Create RebuildSummary component showing results in console/src/components/RebuildSummary.tsx
+- [x] T040 [US4] Create AdminPage with rebuild action and results display in console/src/pages/AdminPage.tsx
+- [x] T041 [US4] Add progress indicator during rebuild operation in console/src/pages/AdminPage.tsx
+- [x] T042 [US4] Add error handling for rebuild failures with details in console/src/pages/AdminPage.tsx
+- [x] T043 [US4] Add rebuild-in-progress state blocking concurrent rebuilds in console/src/pages/AdminPage.tsx
 
 **Checkpoint**: Admin functionality complete - can trigger and monitor index rebuilds independently
 
@@ -141,10 +141,10 @@
 
 **Purpose**: Production readiness and deployment automation
 
-- [ ] T044 [P] Create GitHub Actions workflow for console deployment in .github/workflows/deploy-console.yml
-- [ ] T045 [P] Add environment variable for API URL in console/.env.example
-- [ ] T046 [P] Update console/README.md with development and deployment instructions
-- [ ] T047 Verify all Backpack components render without console errors
+- [x] T044 [P] Create GitHub Actions workflow for console deployment in .github/workflows/deploy-console.yml
+- [x] T045 [P] Add environment variable for API URL in console/.env.example
+- [x] T046 [P] Update console/README.md with development and deployment instructions
+- [x] T047 Verify all Backpack components render without console errors
 - [ ] T048 Test cross-browser compatibility (Chrome, Firefox, Safari, Edge)
 - [ ] T049 Validate Lighthouse accessibility score meets 80+ target
 - [ ] T050 Run quickstart.md validation end-to-end
