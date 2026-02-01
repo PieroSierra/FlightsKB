@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from src import __version__
 
@@ -27,6 +28,20 @@ def create_app(
         title="Flights KB API",
         description="A lightweight HTTP API for querying and managing the Flights KB knowledge base.",
         version=__version__,
+    )
+
+    # Add CORS middleware for console access
+    cors_origins = os.environ.get(
+        "FLIGHTSKB_CORS_ORIGINS",
+        "http://localhost:5173,http://localhost:4173,https://pierosierra.github.io"
+    ).split(",")
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     # Store config in app state
