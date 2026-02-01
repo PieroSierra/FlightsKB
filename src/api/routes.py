@@ -1,6 +1,7 @@
 """API routes for Flights KB."""
 
 import base64
+from pathlib import Path
 from typing import Optional, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Header, Request
@@ -84,6 +85,10 @@ class IngestRequest(BaseModel):
     content_type: Literal["text", "txt", "pdf", "html"]
     content: str = Field(..., max_length=7340032)  # ~5MB base64
     filename: Optional[str] = Field(None, max_length=255)
+    title: Optional[str] = Field(None, max_length=255)
+    category: Optional[str] = Field(default="inbox", max_length=50)
+    kind: Optional[str] = Field(default="internal", max_length=50)
+    confidence: Optional[str] = Field(default="medium", max_length=20)
 
 
 class IngestResponse(BaseModel):
@@ -94,6 +99,13 @@ class IngestResponse(BaseModel):
     file_path: str
     title: str
     chunk_count: int
+
+
+class CategoriesResponse(BaseModel):
+    """Response from categories endpoint."""
+
+    categories: list[str]
+    default: str = "inbox"
 
 
 # Size limits
@@ -130,6 +142,22 @@ async def health_check():
     """Health check endpoint."""
     from src import __version__
     return HealthResponse(status="healthy", version=__version__)
+
+
+@router.get("/categories", response_model=CategoriesResponse)
+async def get_categories(request: Request):
+    """Get available knowledge categories (subdirectories).
+
+    Returns destination categories for ingestion (excludes inbox which is staging area).
+    """
+    knowledge_dir = Path(request.app.state.knowledge_dir)
+    categories = sorted([
+        d.name for d in knowledge_dir.iterdir()
+        if d.is_dir() and not d.name.startswith(".") and d.name != "inbox"
+    ])
+    # Default to first category if available, otherwise empty string
+    default = categories[0] if categories else ""
+    return CategoriesResponse(categories=categories, default=default)
 
 
 @router.post("/query", response_model=QueryResponse)
@@ -247,15 +275,23 @@ async def ingest_content(
             knowledge_dir=request.app.state.knowledge_dir,
         )
 
+        # Prepare metadata for ingestion
+        ingest_kwargs = {
+            "source_kind": body.kind or "internal",
+            "title": body.title,
+            "category": body.category or "inbox",
+            "confidence": body.confidence or "medium",
+        }
+
         # Perform ingestion based on content type
         if body.content_type == "text":
-            result = ingest_service.ingest_text(content)
+            result = ingest_service.ingest_text(content, **ingest_kwargs)
         elif body.content_type == "txt":
-            result = ingest_service.ingest_txt(content_bytes)
+            result = ingest_service.ingest_txt(content_bytes, **ingest_kwargs)
         elif body.content_type == "pdf":
-            result = ingest_service.ingest_pdf(content_bytes)
+            result = ingest_service.ingest_pdf(content_bytes, **ingest_kwargs)
         elif body.content_type == "html":
-            result = ingest_service.ingest_html(content_bytes)
+            result = ingest_service.ingest_html(content_bytes, **ingest_kwargs)
         else:
             raise HTTPException(
                 status_code=400,

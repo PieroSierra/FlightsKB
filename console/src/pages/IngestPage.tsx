@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TextIngestForm } from '../components/TextIngestForm';
 import { FileUploadForm } from '../components/FileUploadForm';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { api } from '../services/api';
-import type { IngestResponse, ApiError } from '../types';
+import type { IngestResponse, ApiError, IngestMetadata } from '../types';
 
 type TabMode = 'text' | 'file';
 
@@ -12,8 +12,32 @@ export function IngestPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<IngestResponse | null>(null);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [defaultCategory, setDefaultCategory] = useState('');
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [categoriesError, setCategoriesError] = useState<string | null>(null);
 
-  const handleTextIngest = async (content: string) => {
+  // Fetch categories on mount
+  useEffect(() => {
+    setCategoriesLoading(true);
+    setCategoriesError(null);
+    api.getCategories()
+      .then((response) => {
+        setCategories(response.categories);
+        setDefaultCategory(response.default);
+      })
+      .catch((err) => {
+        console.error('Failed to fetch categories:', err);
+        setCategoriesError('Failed to load categories. Is the backend running?');
+        setCategories([]);
+        setDefaultCategory('');
+      })
+      .finally(() => {
+        setCategoriesLoading(false);
+      });
+  }, []);
+
+  const handleTextIngest = async (content: string, metadata: IngestMetadata) => {
     setIsLoading(true);
     setError(null);
     setResult(null);
@@ -22,6 +46,10 @@ export function IngestPage() {
       const response = await api.ingest({
         content_type: 'text',
         content,
+        title: metadata.title,
+        category: metadata.category,
+        kind: metadata.kind,
+        confidence: metadata.confidence,
       });
       setResult(response);
     } catch (err) {
@@ -32,7 +60,7 @@ export function IngestPage() {
     }
   };
 
-  const handleFileIngest = async (file: File, contentType: 'txt' | 'pdf' | 'html') => {
+  const handleFileIngest = async (file: File, contentType: 'txt' | 'pdf' | 'html', metadata: IngestMetadata) => {
     setIsLoading(true);
     setError(null);
     setResult(null);
@@ -53,6 +81,10 @@ export function IngestPage() {
         content_type: contentType,
         content,
         filename: file.name,
+        title: metadata.title,
+        category: metadata.category,
+        kind: metadata.kind,
+        confidence: metadata.confidence,
       });
       setResult(response);
     } catch (err) {
@@ -108,6 +140,12 @@ export function IngestPage() {
         </div>
       )}
 
+      {categoriesError && (
+        <div style={{ marginBottom: '16px' }}>
+          <ErrorBanner message={categoriesError} onDismiss={() => setCategoriesError(null)} />
+        </div>
+      )}
+
       {!result && (
         <>
           <div className="tabs">
@@ -128,10 +166,24 @@ export function IngestPage() {
           </div>
 
           <div className="card">
-            {mode === 'text' ? (
-              <TextIngestForm onSubmit={handleTextIngest} isLoading={isLoading} />
+            {categoriesLoading ? (
+              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                Loading categories...
+              </div>
+            ) : mode === 'text' ? (
+              <TextIngestForm
+                onSubmit={handleTextIngest}
+                isLoading={isLoading}
+                categories={categories}
+                defaultCategory={defaultCategory}
+              />
             ) : (
-              <FileUploadForm onSubmit={handleFileIngest} isLoading={isLoading} />
+              <FileUploadForm
+                onSubmit={handleFileIngest}
+                isLoading={isLoading}
+                categories={categories}
+                defaultCategory={defaultCategory}
+              />
             )}
           </div>
         </>

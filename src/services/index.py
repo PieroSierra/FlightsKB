@@ -2,11 +2,13 @@
 
 import json
 import logging
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
 import chromadb
+import frontmatter
 from chromadb.config import Settings
 
 from src.models.chunk import Chunk
@@ -138,9 +140,72 @@ class IndexService:
             results=query_results,
         )
 
+    def _process_inbox_files(self, verbose: bool = False) -> list[str]:
+        """
+        Move files from inbox to their destination categories.
+
+        Files with destination_category in frontmatter are moved to
+        /knowledge/{destination_category}/ and the tag is removed.
+
+        Args:
+            verbose: Print progress information.
+
+        Returns:
+            List of error messages.
+        """
+        errors = []
+        inbox_dir = self.knowledge_dir / "inbox"
+
+        if not inbox_dir.exists():
+            return errors
+
+        for file_path in inbox_dir.glob("*.md"):
+            try:
+                # Read file and parse frontmatter
+                with open(file_path) as f:
+                    post = frontmatter.load(f)
+
+                destination = post.metadata.get("destination_category")
+                if not destination:
+                    continue  # No destination, leave in inbox
+
+                # Validate destination directory exists or can be created
+                dest_dir = self.knowledge_dir / destination
+                dest_dir.mkdir(parents=True, exist_ok=True)
+
+                # Remove destination_category from metadata (file is now in the right place)
+                del post.metadata["destination_category"]
+
+                # Update status from draft to reviewed (optional enhancement)
+                if post.metadata.get("status") == "draft":
+                    post.metadata["status"] = "reviewed"
+                post.metadata["updated"] = datetime.now().date().isoformat()
+
+                # Write to destination
+                dest_file = dest_dir / file_path.name
+                with open(dest_file, "w") as f:
+                    f.write(frontmatter.dumps(post))
+
+                # Remove original file from inbox
+                file_path.unlink()
+
+                if verbose:
+                    logger.info(f"Moved {file_path.name} to {destination}/")
+
+            except Exception as e:
+                error_msg = f"Failed to process inbox file {file_path.name}: {e}"
+                errors.append(error_msg)
+                if verbose:
+                    logger.error(error_msg)
+
+        return errors
+
     def rebuild(self, verbose: bool = False) -> dict:
         """
         Rebuild the index from knowledge directory.
+
+        First moves files from inbox to their destination categories,
+        then rebuilds the vector index.
 
         Args:
             verbose: Print progress information.
@@ -149,6 +214,9 @@ class IndexService:
             Dictionary with rebuild statistics.
         """
         start_time = datetime.now()
+
+        # Process inbox files first - move to destination categories
+        inbox_errors = self._process_inbox_files(verbose=verbose)
 
         # Clear existing collection
         try:
@@ -160,6 +228,7 @@ class IndexService:
         # Chunk all documents
         chunker = Chunker()
         chunks, errors = chunker.chunk_directory(self.knowledge_dir)
+        errors = inbox_errors + errors
 
         if verbose and errors:
             for error in errors:

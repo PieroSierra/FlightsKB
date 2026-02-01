@@ -29,15 +29,22 @@ class IngestService:
         source_kind: str = "internal",
         source_name: str = "manual",
         title: Optional[str] = None,
+        category: str = "inbox",
+        confidence: str = "medium",
     ) -> dict:
         """
         Ingest raw text content.
+
+        All files are saved to inbox/ as a staging area with destination_category
+        in frontmatter. During rebuild, files are moved to their destination.
 
         Args:
             text: Raw text to ingest.
             source_kind: Source category.
             source_name: Source name/author.
             title: Optional title (auto-generated if not provided).
+            category: Destination category (where to move on rebuild).
+            confidence: Confidence level (high, medium, low).
 
         Returns:
             Dictionary with ingestion result.
@@ -56,7 +63,7 @@ class IngestService:
         # Generate markdown content
         content = "\n\n".join(cards)
 
-        # Create frontmatter
+        # Create frontmatter - always save to inbox with destination_category
         metadata = {
             "kb_id": kb_id,
             "type": "ingested",
@@ -70,8 +77,12 @@ class IngestService:
                 "url": None,
                 "retrieved": None,
             },
-            "confidence": "medium",
+            "confidence": confidence,
+            "destination_category": category,  # Tag with where to move on rebuild
         }
+
+        # Always save to inbox (staging area)
+        self.inbox_dir.mkdir(parents=True, exist_ok=True)
 
         # Create post and save
         post = frontmatter.Post(content, **metadata)
@@ -82,9 +93,91 @@ class IngestService:
         return {
             "kb_id": kb_id,
             "output_file": str(output_file),
+            "file_path": str(output_file),
             "card_count": len(cards),
+            "chunk_count": len(cards),
             "title": title,
         }
+
+    def ingest_txt(
+        self,
+        content_bytes: bytes,
+        source_kind: str = "internal",
+        title: Optional[str] = None,
+        category: str = "inbox",
+        confidence: str = "medium",
+    ) -> dict:
+        """Ingest a .txt file from bytes."""
+        text = content_bytes.decode("utf-8")
+        return self.ingest_text(
+            text=text,
+            source_kind=source_kind,
+            source_name="file",
+            title=title,
+            category=category,
+            confidence=confidence,
+        )
+
+    def ingest_pdf(
+        self,
+        content_bytes: bytes,
+        source_kind: str = "internal",
+        title: Optional[str] = None,
+        category: str = "inbox",
+        confidence: str = "medium",
+    ) -> dict:
+        """Ingest a PDF file from bytes."""
+        try:
+            import fitz  # PyMuPDF
+        except ImportError:
+            raise ImportError("PyMuPDF required for PDF ingestion. Run: pip install pymupdf")
+
+        doc = fitz.open(stream=content_bytes, filetype="pdf")
+        text_parts = []
+        for page in doc:
+            text_parts.append(page.get_text())
+        doc.close()
+        text = "\n\n".join(text_parts)
+
+        return self.ingest_text(
+            text=text,
+            source_kind=source_kind,
+            source_name="file",
+            title=title,
+            category=category,
+            confidence=confidence,
+        )
+
+    def ingest_html(
+        self,
+        content_bytes: bytes,
+        source_kind: str = "internal",
+        title: Optional[str] = None,
+        category: str = "inbox",
+        confidence: str = "medium",
+    ) -> dict:
+        """Ingest an HTML file from bytes."""
+        try:
+            from bs4 import BeautifulSoup
+        except ImportError:
+            raise ImportError("BeautifulSoup required for HTML ingestion. Run: pip install beautifulsoup4")
+
+        soup = BeautifulSoup(content_bytes.decode("utf-8"), "html.parser")
+
+        # Remove script and style elements
+        for element in soup(["script", "style", "nav", "footer", "header"]):
+            element.decompose()
+
+        text = soup.get_text(separator="\n", strip=True)
+
+        return self.ingest_text(
+            text=text,
+            source_kind=source_kind,
+            source_name="file",
+            title=title,
+            category=category,
+            confidence=confidence,
+        )
 
     def ingest_file(
         self,

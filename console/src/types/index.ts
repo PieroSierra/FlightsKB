@@ -58,6 +58,25 @@ export interface IngestRequest {
   content_type: "text" | "txt" | "pdf" | "html";
   content: string;
   filename?: string;
+  title?: string;
+  category?: string;
+  kind?: string;
+  confidence?: string;
+}
+
+export interface CategoriesResponse {
+  categories: string[];
+  default: string;
+}
+
+export type SourceKind = "internal" | "ugc" | "marketing" | "press" | "blog" | "forum" | "other";
+export type ConfidenceLevel = "high" | "medium" | "low";
+
+export interface IngestMetadata {
+  title?: string;
+  category: string;
+  kind: SourceKind;
+  confidence: ConfidenceLevel;
 }
 
 export interface IngestResponse {

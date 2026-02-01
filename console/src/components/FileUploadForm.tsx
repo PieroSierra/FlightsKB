@@ -1,8 +1,11 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import type { IngestMetadata, SourceKind, ConfidenceLevel } from '../types';
 
 interface FileUploadFormProps {
-  onSubmit: (file: File, contentType: 'txt' | 'pdf' | 'html') => void;
+  onSubmit: (file: File, contentType: 'txt' | 'pdf' | 'html', metadata: IngestMetadata) => void;
   isLoading: boolean;
+  categories: string[];
+  defaultCategory: string;
 }
 
 const ACCEPTED_TYPES: Record<string, 'txt' | 'pdf' | 'html'> = {
@@ -14,10 +17,38 @@ const ACCEPTED_TYPES: Record<string, 'txt' | 'pdf' | 'html'> = {
 const ACCEPTED_EXTENSIONS = ['.txt', '.pdf', '.html', '.htm'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
-export function FileUploadForm({ onSubmit, isLoading }: FileUploadFormProps) {
+const KIND_OPTIONS: { value: SourceKind; label: string }[] = [
+  { value: 'internal', label: 'Internal' },
+  { value: 'ugc', label: 'User Generated' },
+  { value: 'marketing', label: 'Marketing' },
+  { value: 'press', label: 'Press' },
+  { value: 'blog', label: 'Blog' },
+  { value: 'forum', label: 'Forum' },
+  { value: 'other', label: 'Other' },
+];
+
+const CONFIDENCE_OPTIONS: { value: ConfidenceLevel; label: string }[] = [
+  { value: 'high', label: 'High' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'low', label: 'Low' },
+];
+
+export function FileUploadForm({ onSubmit, isLoading, categories, defaultCategory }: FileUploadFormProps) {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [title, setTitle] = useState('');
+  const [category, setCategory] = useState(defaultCategory);
+  const [kind, setKind] = useState<SourceKind>('internal');
+  const [confidence, setConfidence] = useState<ConfidenceLevel>('medium');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-generate title from filename
+  useEffect(() => {
+    if (file && !title) {
+      const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '');
+      setTitle(nameWithoutExt.slice(0, 60));
+    }
+  }, [file, title]);
 
   const getContentType = (file: File): 'txt' | 'pdf' | 'html' | null => {
     // Check by MIME type first
@@ -37,6 +68,7 @@ export function FileUploadForm({ onSubmit, isLoading }: FileUploadFormProps) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     setError(null);
+    setTitle('');
 
     if (!selectedFile) {
       setFile(null);
@@ -66,7 +98,12 @@ export function FileUploadForm({ onSubmit, isLoading }: FileUploadFormProps) {
     if (file && !error) {
       const contentType = getContentType(file);
       if (contentType) {
-        onSubmit(file, contentType);
+        onSubmit(file, contentType, {
+          title: title || undefined,
+          category,
+          kind,
+          confidence,
+        });
       }
     }
   };
@@ -123,6 +160,89 @@ export function FileUploadForm({ onSubmit, isLoading }: FileUploadFormProps) {
             <strong>Selected:</strong> {file.name} ({formatFileSize(file.size)})
           </p>
         </div>
+      )}
+
+      {file && !error && (
+        <>
+          <div className="form-group">
+            <label className="form-label" htmlFor="file-title">
+              Title
+            </label>
+            <input
+              type="text"
+              id="file-title"
+              className="bpk-input"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Auto-generated from filename if empty"
+              disabled={isLoading}
+              maxLength={255}
+              style={{ width: '100%' }}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '16px' }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label" htmlFor="file-category">
+                Category
+              </label>
+              <select
+                id="file-category"
+                className="bpk-select"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                disabled={isLoading}
+                style={{ width: '100%' }}
+              >
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label" htmlFor="file-kind">
+                Source Kind
+              </label>
+              <select
+                id="file-kind"
+                className="bpk-select"
+                value={kind}
+                onChange={(e) => setKind(e.target.value as SourceKind)}
+                disabled={isLoading}
+                style={{ width: '100%' }}
+              >
+                {KIND_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label" htmlFor="file-confidence">
+                Confidence
+              </label>
+              <select
+                id="file-confidence"
+                className="bpk-select"
+                value={confidence}
+                onChange={(e) => setConfidence(e.target.value as ConfidenceLevel)}
+                disabled={isLoading}
+                style={{ width: '100%' }}
+              >
+                {CONFIDENCE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </>
       )}
 
       <button type="submit" className="bpk-button" disabled={isLoading || !file || !!error}>

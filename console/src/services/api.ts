@@ -7,6 +7,7 @@ import type {
   IngestResponse,
   HealthResponse,
   ApiError,
+  CategoriesResponse,
 } from '../types';
 
 const getApiUrl = (): string => {
@@ -106,6 +107,10 @@ class ApiClient {
       body: JSON.stringify(request),
       headers,
     });
+  }
+
+  async getCategories(): Promise<CategoriesResponse> {
+    return this.request<CategoriesResponse>('/categories');
   }
 }
 
