@@ -33,8 +33,8 @@ export function SearchForm({ onSearch, isLoading }: SearchFormProps) {
           disabled={isLoading}
         />
       </div>
-      <div className="form-row">
-        <div className="form-group" style={{ width: '120px' }}>
+      <div className="form-row" style={{ alignItems: 'center' }}>
+        <div style={{ width: '120px' }}>
           <label className="form-label" htmlFor="k-value">
             Results (k)
           </label>
@@ -53,7 +53,7 @@ export function SearchForm({ onSearch, isLoading }: SearchFormProps) {
             ))}
           </select>
         </div>
-        <button type="submit" className="bpk-button" disabled={isLoading || !text.trim()}>
+        <button type="submit" className="bpk-button" disabled={isLoading || !text.trim()} style={{ marginTop: '24px' }}>
           {isLoading ? 'Searching...' : 'Search'}
         </button>
       </div>

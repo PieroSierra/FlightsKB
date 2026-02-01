@@ -387,3 +387,68 @@ body {
   border-radius: 4px;
   color: #e65100;
 }
+
+/* Chunk content markdown rendering */
+.chunk-content {
+  color: #333;
+  line-height: 1.6;
+}
+
+.chunk-content p {
+  margin: 0 0 12px 0;
+}
+
+.chunk-content p:last-child {
+  margin-bottom: 0;
+}
+
+.chunk-content h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 16px 0 8px 0;
+  color: #111236;
+}
+
+.chunk-content h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 12px 0 6px 0;
+  color: #111236;
+}
+
+.chunk-content h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 10px 0 4px 0;
+  color: #111236;
+}
+
+.chunk-content strong {
+  font-weight: 600;
+}
+
+.chunk-content em {
+  font-style: italic;
+}
+
+.chunk-content code {
+  background-color: #f1f2f8;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+.chunk-content a {
+  color: var(--bpk-color-sky-blue);
+  text-decoration: none;
+}
+
+.chunk-content a:hover {
+  text-decoration: underline;
+}
+
+.chunk-content li {
+  margin-left: 20px;
+  list-style-type: disc;
+}
