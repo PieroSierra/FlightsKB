@@ -1,0 +1,144 @@
+openapi: 3.0.3
+info:
+  title: Flights KB API - Ingest Extension
+  version: 1.1.0
+  description: New ingest endpoint for KB Console
+
+paths:
+  /ingest:
+    post:
+      summary: Ingest new content into the knowledge base
+      description: |
+        Accepts text, txt, pdf, or html content and creates a new Markdown
+        knowledge base file in the inbox folder. The content is automatically
+        chunked and indexed.
+      operationId: ingestContent
+      tags:
+        - Ingestion
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestRequest'
+            examples:
+              textInput:
+                summary: Plain text ingestion
+                value:
+                  content_type: text
+                  content: "Here is a tip for flying business class on United Airlines..."
+              fileUpload:
+                summary: PDF file upload (base64)
+                value:
+                  content_type: pdf
+                  content: "JVBERi0xLjQKJeLj..."
+                  filename: "flight-tips.pdf"
+      responses:
+        '200':
+          description: Content successfully ingested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: Content too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Content parsing failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Storage error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  schemas:
+    IngestRequest:
+      type: object
+      required:
+        - content_type
+        - content
+      properties:
+        content_type:
+          type: string
+          enum: [text, txt, pdf, html]
+          description: Type of content being ingested
+        content:
+          type: string
+          description: Raw text content or base64-encoded binary
+          maxLength: 7340032  # ~5MB base64
+        filename:
+          type: string
+          description: Original filename (optional, for reference)
+          maxLength: 255
+
+    IngestResponse:
+      type: object
+      required:
+        - success
+        - kb_id
+        - file_path
+        - title
+        - chunk_count
+      properties:
+        success:
+          type: boolean
+          example: true
+        kb_id:
+          type: string
+          description: Generated knowledge base ID
+          example: "ingest-a1b2c3d4"
+        file_path:
+          type: string
+          description: Path to the created Markdown file
+          example: "knowledge/inbox/ingest-a1b2c3d4.md"
+        title:
+          type: string
+          description: Extracted or generated title
+          example: "United Airlines Business Class Tips"
+        chunk_count:
+          type: integer
+          description: Number of chunks created from content
+          example: 3
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          enum:
+            - INVALID_CONTENT
+            - PARSE_FAILED
+            - STORAGE_ERROR
+            - CONTENT_TOO_LARGE
+        message:
+          type: string
+          example: "Failed to parse PDF content"
+        details:
+          type: object
+          additionalProperties: true
