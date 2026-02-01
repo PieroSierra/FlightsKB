@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flightskb"
+version = "0.1.0"
+description = "A lightweight knowledge base for flight-related information with semantic search"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [
+    {name = "Flights KB Team"}
+]
+keywords = ["knowledge-base", "flights", "semantic-search", "embeddings"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "chromadb>=0.4.0",
+    "sentence-transformers>=2.2.0",
+    "click>=8.1.0",
+    "python-frontmatter>=1.0.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+api = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+]
+ingest = [
+    "pymupdf>=1.23.0",
+    "beautifulsoup4>=4.12.0",
+]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]
+all = [
+    "flightskb[api,ingest,dev]",
+]
+
+[project.scripts]
+flightskb = "src.cli:cli"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = ["E", "F", "I", "N", "W"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --tb=short"

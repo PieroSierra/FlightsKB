@@ -1,0 +1,33 @@
+# Test queries for evaluating Flights KB retrieval quality
+# Run with: flightskb eval
+
+queries:
+  - id: q1-booking-window
+    query: "best time to book business class LHR to JFK"
+    expected_kb_ids:
+      - hack-booking-window-2024
+    k: 3
+
+  - id: q2-ba-business
+    query: "British Airways Club World seat selection"
+    expected_kb_ids:
+      - ba-business-class-2024
+    k: 3
+
+  - id: q3-lounge-lhr
+    query: "Heathrow Terminal 5 lounge options"
+    expected_kb_ids:
+      - lhr-t5-lounges-2024
+    k: 3
+
+  - id: q4-premium-economy
+    query: "when to book premium economy for best price"
+    expected_kb_ids:
+      - hack-booking-window-2024
+    k: 3
+
+  - id: q5-ba-upgrade
+    query: "how to get upgraded on BA flights"
+    expected_kb_ids:
+      - ba-business-class-2024
+    k: 3

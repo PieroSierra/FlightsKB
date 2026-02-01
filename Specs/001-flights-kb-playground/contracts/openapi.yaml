@@ -1,0 +1,423 @@
+openapi: 3.1.0
+info:
+  title: Flights KB Playground API
+  description: |
+    A lightweight HTTP API for querying and managing the Flights KB knowledge base.
+
+    **Authentication**: Write operations (rebuild) require a shared secret token
+    passed via `X-API-Key` header. Query and stats endpoints are open.
+
+    **Note**: This is a playground/prototype API. Not for production use.
+  version: 1.0.0
+  contact:
+    name: Flights KB Team
+
+servers:
+  - url: http://localhost:8000
+    description: Local development
+  - url: https://flights-kb.railway.app
+    description: Playground deployment
+
+tags:
+  - name: query
+    description: Search the knowledge base
+  - name: stats
+    description: Knowledge base statistics
+  - name: admin
+    description: Administrative operations (requires auth)
+
+paths:
+  /query:
+    post:
+      summary: Search knowledge base
+      description: |
+        Perform semantic search across all indexed knowledge chunks.
+        Returns top-k results ranked by similarity score.
+      operationId: queryKnowledgeBase
+      tags:
+        - query
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+            examples:
+              simple:
+                summary: Simple text query
+                value:
+                  text: "business class tips for transatlantic flights"
+                  k: 5
+              filtered:
+                summary: Query with filters
+                value:
+                  text: "lounge access"
+                  k: 3
+                  filters:
+                    airline: "BA"
+                    cabin: "business"
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Index not available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /stats:
+    get:
+      summary: Get knowledge base statistics
+      description: |
+        Returns aggregate statistics about the knowledge base including
+        document counts, chunk counts, and index metadata.
+      operationId: getStats
+      tags:
+        - stats
+      responses:
+        '200':
+          description: Statistics response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatsResponse'
+        '503':
+          description: Index not available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /rebuild:
+    post:
+      summary: Rebuild vector index
+      description: |
+        Triggers a full rebuild of the vector index from the knowledge/ directory.
+        This operation may take several seconds depending on the number of documents.
+
+        **Requires authentication via X-API-Key header.**
+      operationId: rebuildIndex
+      tags:
+        - admin
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: Rebuild completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RebuildResponse'
+        '401':
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Rebuild failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /health:
+    get:
+      summary: Health check
+      description: Returns service health status
+      operationId: healthCheck
+      tags:
+        - stats
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy]
+                  version:
+                    type: string
+                required:
+                  - status
+
+components:
+  securitySchemes:
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Shared secret for write operations
+
+  schemas:
+    QueryRequest:
+      type: object
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          description: Natural language query text
+          minLength: 1
+          maxLength: 1000
+          example: "best booking window for LHR to JFK"
+        k:
+          type: integer
+          description: Number of results to return
+          minimum: 1
+          maximum: 50
+          default: 5
+        filters:
+          type: object
+          description: Metadata filters to apply
+          properties:
+            airline:
+              type: string
+              description: Filter by airline IATA code
+              example: "BA"
+            alliance:
+              type: string
+              description: Filter by airline alliance
+              example: "oneworld"
+            airports:
+              type: array
+              items:
+                type: string
+              description: Filter by airport codes
+              example: ["LHR", "JFK"]
+            routes:
+              type: array
+              items:
+                type: string
+              description: Filter by route pairs
+              example: ["LHR-JFK"]
+            cabin:
+              type: string
+              description: Filter by cabin class
+              example: "business"
+            type:
+              type: string
+              description: Filter by document type
+              example: "hack"
+            confidence:
+              type: string
+              enum: [low, medium, high]
+              description: Filter by confidence level
+            status:
+              type: string
+              enum: [draft, reviewed, deprecated]
+              description: Filter by document status
+
+    QueryResponse:
+      type: object
+      required:
+        - results
+        - query
+        - total_results
+      properties:
+        query:
+          type: string
+          description: The original query text
+        total_results:
+          type: integer
+          description: Number of results returned
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChunkResult'
+
+    ChunkResult:
+      type: object
+      required:
+        - chunk_id
+        - kb_id
+        - title
+        - text
+        - score
+        - file_path
+      properties:
+        chunk_id:
+          type: string
+          description: Unique chunk identifier
+          example: "ba-premium-economy-2024#booking-window-tips"
+        kb_id:
+          type: string
+          description: Parent document ID
+          example: "ba-premium-economy-2024"
+        title:
+          type: string
+          description: Chunk heading
+          example: "Rule of thumb: LHR→JFK best booking window"
+        text:
+          type: string
+          description: Full chunk content (markdown)
+        score:
+          type: number
+          format: float
+          description: Similarity score (0-1, higher = more similar)
+          minimum: 0
+          maximum: 1
+          example: 0.87
+        metadata:
+          type: object
+          description: Chunk metadata
+          additionalProperties: true
+        file_path:
+          type: string
+          description: Source file path relative to knowledge/
+          example: "airlines/BA/premium-economy.md"
+
+    StatsResponse:
+      type: object
+      required:
+        - document_count
+        - chunk_count
+        - index_metadata
+      properties:
+        document_count:
+          type: integer
+          description: Total number of source documents
+          example: 42
+        chunk_count:
+          type: integer
+          description: Total number of indexed chunks
+          example: 156
+        by_type:
+          type: object
+          description: Chunk counts grouped by document type
+          additionalProperties:
+            type: integer
+          example:
+            hack: 45
+            airline_premium_fare: 32
+            lounge_tip: 28
+        by_category:
+          type: object
+          description: Chunk counts grouped by category folder
+          additionalProperties:
+            type: integer
+          example:
+            airlines: 67
+            lounges: 34
+            hacks: 55
+        by_confidence:
+          type: object
+          description: Chunk counts grouped by confidence level
+          additionalProperties:
+            type: integer
+          example:
+            high: 89
+            medium: 52
+            low: 15
+        by_status:
+          type: object
+          description: Chunk counts grouped by document status
+          additionalProperties:
+            type: integer
+          example:
+            reviewed: 120
+            draft: 30
+            deprecated: 6
+        index_metadata:
+          $ref: '#/components/schemas/IndexMetadata'
+
+    IndexMetadata:
+      type: object
+      required:
+        - last_rebuild
+        - embedding_model
+        - vector_db_type
+      properties:
+        last_rebuild:
+          type: string
+          format: date-time
+          description: Timestamp of last index rebuild
+          example: "2026-02-01T14:30:00Z"
+        embedding_model:
+          type: string
+          description: Name of embedding model used
+          example: "all-MiniLM-L6-v2"
+        embedding_dimensions:
+          type: integer
+          description: Vector dimensionality
+          example: 384
+        vector_db_type:
+          type: string
+          description: Vector database implementation
+          example: "chromadb"
+
+    RebuildResponse:
+      type: object
+      required:
+        - success
+        - documents_processed
+        - chunks_indexed
+        - duration_seconds
+      properties:
+        success:
+          type: boolean
+          description: Whether rebuild completed successfully
+        documents_processed:
+          type: integer
+          description: Number of documents processed
+          example: 42
+        chunks_indexed:
+          type: integer
+          description: Number of chunks indexed
+          example: 156
+        duration_seconds:
+          type: number
+          format: float
+          description: Time taken for rebuild
+          example: 12.5
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProcessingError'
+          description: Any errors encountered during processing
+
+    ProcessingError:
+      type: object
+      required:
+        - file
+        - error
+      properties:
+        file:
+          type: string
+          description: File path that caused the error
+        error:
+          type: string
+          description: Error message
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error code
+          example: "INVALID_REQUEST"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Query text cannot be empty"
+        details:
+          type: object
+          description: Additional error context
+          additionalProperties: true
