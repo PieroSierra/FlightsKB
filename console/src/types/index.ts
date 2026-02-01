@@ -130,3 +130,40 @@ export interface AdminState {
   rebuildResult?: RebuildResponse;
   error?: string;
 }
+
+// File Tree Types
+
+export interface FileTreeNodeMetadata {
+  kb_id?: string;
+  title?: string;
+  status?: string;
+}
+
+export interface FileTreeNode {
+  name: string;
+  path: string;
+  type: "file" | "directory";
+  children?: FileTreeNode[];
+  metadata?: FileTreeNodeMetadata;
+}
+
+export interface FileTreeResponse {
+  root: string;
+  tree: FileTreeNode[];
+}
+
+export interface FileContentResponse {
+  path: string;
+  filename: string;
+  content: string;
+  frontmatter: Record<string, unknown>;
+}
+
+export interface BrowseState {
+  isLoadingTree: boolean;
+  isLoadingContent: boolean;
+  tree: FileTreeNode[];
+  selectedPath?: string;
+  content?: FileContentResponse;
+  error?: string;
+}

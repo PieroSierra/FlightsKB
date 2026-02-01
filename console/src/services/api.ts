@@ -8,6 +8,8 @@ import type {
   HealthResponse,
   ApiError,
   CategoriesResponse,
+  FileTreeResponse,
+  FileContentResponse,
 } from '../types';
 
 const getApiUrl = (): string => {
@@ -111,6 +113,14 @@ class ApiClient {
 
   async getCategories(): Promise<CategoriesResponse> {
     return this.request<CategoriesResponse>('/categories');
+  }
+
+  async getFileTree(): Promise<FileTreeResponse> {
+    return this.request<FileTreeResponse>('/files/tree');
+  }
+
+  async getFileContent(path: string): Promise<FileContentResponse> {
+    return this.request<FileContentResponse>(`/files/content?path=${encodeURIComponent(path)}`);
   }
 }
 

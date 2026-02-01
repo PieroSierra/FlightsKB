@@ -4,7 +4,8 @@ import base64
 from pathlib import Path
 from typing import Optional, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Header, Request
+import frontmatter
+from fastapi import APIRouter, Depends, HTTPException, Header, Request, Query
 from pydantic import BaseModel, Field
 
 from src.services.index import IndexService
@@ -106,6 +107,32 @@ class CategoriesResponse(BaseModel):
 
     categories: list[str]
     default: str = "inbox"
+
+
+class FileTreeNode(BaseModel):
+    """A node in the file tree."""
+
+    name: str
+    path: str
+    type: Literal["file", "directory"]
+    children: Optional[list["FileTreeNode"]] = None
+    metadata: Optional[dict] = None
+
+
+class FileTreeResponse(BaseModel):
+    """Response from file tree endpoint."""
+
+    root: str
+    tree: list[FileTreeNode]
+
+
+class FileContentResponse(BaseModel):
+    """Response from file content endpoint."""
+
+    path: str
+    filename: str
+    content: str
+    frontmatter: dict
 
 
 # Size limits
@@ -316,3 +343,135 @@ async def ingest_content(
             status_code=422,
             detail={"error": "PARSE_FAILED", "message": str(e)},
         )
+
+
+def _is_safe_path(base_path: Path, requested_path: str) -> Path:
+    """Validate path to prevent directory traversal attacks.
+
+    Returns the resolved absolute path if safe, raises HTTPException otherwise.
+    """
+    # Normalize and resolve the full path
+    full_path = (base_path / requested_path).resolve()
+
+    # Ensure the resolved path is still under base_path
+    try:
+        full_path.relative_to(base_path.resolve())
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "INVALID_PATH", "message": "Path traversal not allowed"},
+        )
+
+    return full_path
+
+
+def _build_file_tree(directory: Path, base_path: Path) -> list[FileTreeNode]:
+    """Recursively build the file tree for a directory."""
+    nodes = []
+
+    try:
+        entries = sorted(directory.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower()))
+    except PermissionError:
+        return nodes
+
+    for entry in entries:
+        if entry.name.startswith("."):
+            continue
+
+        relative_path = str(entry.relative_to(base_path))
+
+        if entry.is_dir():
+            children = _build_file_tree(entry, base_path)
+            nodes.append(FileTreeNode(
+                name=entry.name,
+                path=relative_path,
+                type="directory",
+                children=children,
+            ))
+        elif entry.suffix == ".md":
+            # Extract frontmatter metadata for markdown files
+            metadata = {}
+            try:
+                post = frontmatter.load(str(entry))
+                metadata = {
+                    "kb_id": post.get("kb_id", ""),
+                    "title": post.get("title", entry.stem),
+                    "status": post.get("status", ""),
+                }
+            except Exception:
+                metadata = {"title": entry.stem}
+
+            nodes.append(FileTreeNode(
+                name=entry.name,
+                path=relative_path,
+                type="file",
+                metadata=metadata,
+            ))
+
+    return nodes
+
+
+@router.get("/files/tree", response_model=FileTreeResponse)
+async def get_file_tree(request: Request):
+    """Get the hierarchical file tree of the knowledge directory."""
+    knowledge_dir = Path(request.app.state.knowledge_dir)
+
+    if not knowledge_dir.exists():
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "NOT_FOUND", "message": "Knowledge directory not found"},
+        )
+
+    tree = _build_file_tree(knowledge_dir, knowledge_dir)
+
+    return FileTreeResponse(
+        root="knowledge",
+        tree=tree,
+    )
+
+
+@router.get("/files/content", response_model=FileContentResponse)
+async def get_file_content(
+    request: Request,
+    path: str = Query(..., description="Relative path to the file"),
+):
+    """Get the content and frontmatter of a markdown file."""
+    knowledge_dir = Path(request.app.state.knowledge_dir)
+
+    # Validate path to prevent directory traversal
+    full_path = _is_safe_path(knowledge_dir, path)
+
+    if not full_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "NOT_FOUND", "message": f"File not found: {path}"},
+        )
+
+    if not full_path.is_file():
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "INVALID_PATH", "message": "Path is not a file"},
+        )
+
+    if full_path.suffix != ".md":
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "INVALID_FILE", "message": "Only markdown files are supported"},
+        )
+
+    try:
+        post = frontmatter.load(str(full_path))
+        content = post.content
+        fm = dict(post.metadata)
+    except Exception as e:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "PARSE_FAILED", "message": f"Failed to parse file: {e}"},
+        )
+
+    return FileContentResponse(
+        path=path,
+        filename=full_path.name,
+        content=content,
+        frontmatter=fm,
+    )

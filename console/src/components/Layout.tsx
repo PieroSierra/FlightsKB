@@ -3,6 +3,8 @@ import { NavLink, Outlet } from 'react-router-dom';
 const navItems = [
   { to: '/', label: 'Query' },
   { to: '/ingest', label: 'Ingest' },
+  { to: '/browse', label: 'Browse' },
+  { to: '/connect', label: 'Connect' },
   { to: '/stats', label: 'Stats' },
   { to: '/admin', label: 'Admin' },
 ];
