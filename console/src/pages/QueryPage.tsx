@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { SearchForm } from '../components/SearchForm';
 import { ResultCard } from '../components/ResultCard';
 import { ErrorBanner } from '../components/ErrorBanner';
@@ -36,9 +37,13 @@ export function QueryPage() {
   return (
     <div>
       <div className="page-header">
-        <h2 className="page-title">Query Knowledge Base</h2>
+        <h2 className="page-title">Flights Knowledge Base</h2>
         <p className="page-description">
-          Search for flight tips, guides, and policies using natural language.
+          A vector database of unstructured flights knowledge and hacks for prototyping LLM-based flights features.
+        </p>
+        <p className="page-description" style={{ marginTop: '8px' }}>
+          To search, enter your query below. To add your own knowledge, go to <Link to="/ingest">Ingest</Link>.
+          To connect your prototype to this database, check the <Link to="/connect">Connect</Link> tab.
         </p>
       </div>
 

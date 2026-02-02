@@ -38,14 +38,29 @@ echo -e "${BLUE}   FlightsKB Development Server${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo ""
 
-# Check for virtual environment
+# Check for virtual environment, create if missing (requires Python 3.11+)
 if [ ! -d ".venv" ]; then
-    echo -e "${RED}Error: .venv not found. Run 'python -m venv .venv' first.${NC}"
-    exit 1
+    echo -e "${YELLOW}Creating virtual environment...${NC}"
+    # Try python3.11, python3.12, then fall back to python3
+    if command -v python3.12 &> /dev/null; then
+        python3.12 -m venv .venv
+    elif command -v python3.11 &> /dev/null; then
+        python3.11 -m venv .venv
+    else
+        echo -e "${RED}Error: Python 3.11+ required. Install python3.11 or python3.12.${NC}"
+        exit 1
+    fi
 fi
 
 # Activate virtual environment
 source .venv/bin/activate
+
+# Upgrade pip to support pyproject.toml editable installs
+pip install -q --upgrade pip
+
+# Install/update Python dependencies (with api extras for FastAPI/uvicorn)
+echo -e "${YELLOW}Installing Python dependencies...${NC}"
+pip install -q -e ".[api,ingest]"
 
 # Check for node_modules in console
 if [ ! -d "console/node_modules" ]; then
