@@ -12,16 +12,35 @@ export function AdminPage() {
   const [result, setResult] = useState<RebuildResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [rebuildSource, setRebuildSource] = useState<RebuildSource>('github');
+  const [apiKey, setApiKey] = useState(() => {
+    // Load from localStorage if available
+    return localStorage.getItem('flightskb_api_key') || '';
+  });
+
+  const handleApiKeyChange = (value: string) => {
+    setApiKey(value);
+    // Persist to localStorage
+    if (value) {
+      localStorage.setItem('flightskb_api_key', value);
+    } else {
+      localStorage.removeItem('flightskb_api_key');
+    }
+  };
 
   const handleRebuild = async () => {
     if (isRebuilding) return; // Prevent concurrent rebuilds
+
+    if (!apiKey.trim()) {
+      setError('API key is required for rebuild operations.');
+      return;
+    }
 
     setIsRebuilding(true);
     setError(null);
     setResult(null);
 
     try {
-      const response = await api.rebuild(undefined, rebuildSource);
+      const response = await api.rebuild(apiKey, rebuildSource);
       setResult(response);
     } catch (err) {
       const apiError = err as ApiError;
@@ -40,7 +59,32 @@ export function AdminPage() {
         </p>
       </div>
 
+      {/* API Key input */}
       <div className="card">
+        <h3 style={{ margin: '0 0 8px 0' }}>API Key</h3>
+        <p style={{ margin: '0 0 12px 0', color: '#68697f' }}>
+          Required for admin operations (rebuild, ingest).
+        </p>
+        <input
+          type="password"
+          value={apiKey}
+          onChange={(e) => handleApiKeyChange(e.target.value)}
+          placeholder="Enter your API key"
+          style={{
+            width: '100%',
+            padding: '10px 12px',
+            border: '1px solid #c1c7cf',
+            borderRadius: '4px',
+            fontSize: '14px',
+            boxSizing: 'border-box',
+          }}
+        />
+        <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: '#68697f' }}>
+          Stored in browser localStorage for convenience.
+        </p>
+      </div>
+
+      <div className="card" style={{ marginTop: '16px' }}>
         <h3 style={{ margin: '0 0 8px 0' }}>Rebuild Vector Index</h3>
         <p style={{ margin: '0 0 16px 0', color: '#68697f' }}>
           Re-process all knowledge base documents and regenerate vector embeddings.

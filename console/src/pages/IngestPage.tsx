@@ -7,6 +7,11 @@ import type { IngestResponse, ApiError, IngestMetadata } from '../types';
 
 type TabMode = 'text' | 'file';
 
+// Helper to get API key from localStorage (shared with AdminPage)
+const getStoredApiKey = (): string => {
+  return localStorage.getItem('flightskb_api_key') || '';
+};
+
 export function IngestPage() {
   const [mode, setMode] = useState<TabMode>('text');
   const [isLoading, setIsLoading] = useState(false);
@@ -38,6 +43,12 @@ export function IngestPage() {
   }, []);
 
   const handleTextIngest = async (content: string, metadata: IngestMetadata) => {
+    const apiKey = getStoredApiKey();
+    if (!apiKey) {
+      setError('API key required. Please set it in the Admin page first.');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setResult(null);
@@ -50,7 +61,7 @@ export function IngestPage() {
         category: metadata.category,
         kind: metadata.kind,
         confidence: metadata.confidence,
-      });
+      }, apiKey);
       setResult(response);
     } catch (err) {
       const apiError = err as ApiError;
@@ -61,6 +72,12 @@ export function IngestPage() {
   };
 
   const handleFileIngest = async (file: File, contentType: 'txt' | 'pdf' | 'html', metadata: IngestMetadata) => {
+    const apiKey = getStoredApiKey();
+    if (!apiKey) {
+      setError('API key required. Please set it in the Admin page first.');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setResult(null);
@@ -85,7 +102,7 @@ export function IngestPage() {
         category: metadata.category,
         kind: metadata.kind,
         confidence: metadata.confidence,
-      });
+      }, apiKey);
       setResult(response);
     } catch (err) {
       const apiError = err as ApiError;
