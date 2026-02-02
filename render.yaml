@@ -14,9 +14,9 @@ services:
     startCommand: uvicorn src.api.app:create_app --factory --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     envVars:
-      # Python version
+      # Python version (must be major.minor.patch)
       - key: PYTHON_VERSION
-        value: "3.11"
+        value: "3.11.0"
       # Node version for frontend build
       - key: NODE_VERSION
         value: "20"
