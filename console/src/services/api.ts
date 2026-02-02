@@ -13,7 +13,7 @@ import type {
 } from '../types';
 
 const getApiUrl = (): string => {
-  // Check URL parameter first
+  // Check URL parameter first (allows override for testing)
   const params = new URLSearchParams(window.location.search);
   const urlParam = params.get('api');
   if (urlParam) return urlParam;
@@ -21,6 +21,13 @@ const getApiUrl = (): string => {
   // Then environment variable
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
+  }
+
+  // Check if we're on Render (*.onrender.com) or other production host
+  const hostname = window.location.hostname;
+  if (hostname.endsWith('.onrender.com') || hostname !== 'localhost') {
+    // In production, API is served from same origin under /api
+    return window.location.origin;
   }
 
   // Default to localhost for development
@@ -72,29 +79,30 @@ class ApiClient {
   }
 
   async health(): Promise<HealthResponse> {
-    return this.request<HealthResponse>('/health');
+    return this.request<HealthResponse>('/api/health');
   }
 
   async query(request: QueryRequest): Promise<QueryResponse> {
-    return this.request<QueryResponse>('/query', {
+    return this.request<QueryResponse>('/api/query', {
       method: 'POST',
       body: JSON.stringify(request),
     });
   }
 
   async getStats(): Promise<StatsResponse> {
-    return this.request<StatsResponse>('/stats');
+    return this.request<StatsResponse>('/api/stats');
   }
 
-  async rebuild(apiKey?: string): Promise<RebuildResponse> {
+  async rebuild(apiKey?: string, source?: 'github' | 'local'): Promise<RebuildResponse> {
     const headers: Record<string, string> = {};
     if (apiKey) {
       headers['X-API-Key'] = apiKey;
     }
 
-    return this.request<RebuildResponse>('/rebuild', {
+    return this.request<RebuildResponse>('/api/rebuild', {
       method: 'POST',
       headers,
+      body: source ? JSON.stringify({ source }) : undefined,
     });
   }
 
@@ -104,7 +112,7 @@ class ApiClient {
       headers['X-API-Key'] = apiKey;
     }
 
-    return this.request<IngestResponse>('/ingest', {
+    return this.request<IngestResponse>('/api/ingest', {
       method: 'POST',
       body: JSON.stringify(request),
       headers,
@@ -112,15 +120,15 @@ class ApiClient {
   }
 
   async getCategories(): Promise<CategoriesResponse> {
-    return this.request<CategoriesResponse>('/categories');
+    return this.request<CategoriesResponse>('/api/categories');
   }
 
   async getFileTree(): Promise<FileTreeResponse> {
-    return this.request<FileTreeResponse>('/files/tree');
+    return this.request<FileTreeResponse>('/api/files/tree');
   }
 
   async getFileContent(path: string): Promise<FileContentResponse> {
-    return this.request<FileContentResponse>(`/files/content?path=${encodeURIComponent(path)}`);
+    return this.request<FileContentResponse>(`/api/files/content?path=${encodeURIComponent(path)}`);
   }
 }
 

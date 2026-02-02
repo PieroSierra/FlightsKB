@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 
 from src.services.index import IndexService
 from src.services.ingest import IngestService
+from src.services.github import get_github_client, GitHubConfigurationError
 
 router = APIRouter()
 
@@ -55,6 +56,13 @@ class StatsResponse(BaseModel):
     index_metadata: dict = {}
 
 
+class RebuildRequest(BaseModel):
+    """Request body for rebuild endpoint."""
+
+    source: Literal["local", "github"] = "github"
+    force: bool = False
+
+
 class RebuildResponse(BaseModel):
     """Response from rebuild endpoint."""
 
@@ -63,6 +71,7 @@ class RebuildResponse(BaseModel):
     chunks_indexed: int
     duration_seconds: float
     errors: list[str] = []
+    source: str = "local"
 
 
 class HealthResponse(BaseModel):
@@ -92,6 +101,15 @@ class IngestRequest(BaseModel):
     confidence: Optional[str] = Field(default="medium", max_length=20)
 
 
+class GitHubCommitResult(BaseModel):
+    """Result of a GitHub commit operation."""
+
+    commit_sha: str
+    commit_url: str
+    file_path: str
+    file_sha: str
+
+
 class IngestResponse(BaseModel):
     """Response from ingest endpoint."""
 
@@ -100,6 +118,8 @@ class IngestResponse(BaseModel):
     file_path: str
     title: str
     chunk_count: int
+    github_commit: Optional[GitHubCommitResult] = None
+    github_error: Optional[str] = None
 
 
 class CategoriesResponse(BaseModel):
@@ -133,6 +153,17 @@ class FileContentResponse(BaseModel):
     filename: str
     content: str
     frontmatter: dict
+
+
+class GitHubStatusResponse(BaseModel):
+    """Response from GitHub status endpoint."""
+
+    configured: bool
+    owner: Optional[str] = None
+    repo: Optional[str] = None
+    branch: Optional[str] = None
+    rate_limit_remaining: Optional[int] = None
+    knowledge_file_count: Optional[int] = None
 
 
 # Size limits
@@ -217,9 +248,20 @@ async def query_knowledge_base(
             ],
         )
     except Exception as e:
+        error_msg = str(e)
+        # Provide helpful message for empty/missing index
+        if "no such table" in error_msg.lower() or "does not exist" in error_msg.lower():
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "error": "INDEX_NOT_READY",
+                    "message": "Vector index has not been built. Use POST /api/rebuild to initialize.",
+                    "rebuild_url": "/api/rebuild",
+                },
+            )
         raise HTTPException(
             status_code=503,
-            detail={"error": "INDEX_UNAVAILABLE", "message": str(e)},
+            detail={"error": "INDEX_UNAVAILABLE", "message": error_msg},
         )
 
 
@@ -240,18 +282,108 @@ async def get_stats(
 
 @router.post("/rebuild", response_model=RebuildResponse)
 async def rebuild_index(
+    body: Optional[RebuildRequest] = None,
     index_service: IndexService = Depends(get_index_service),
     _: None = Depends(verify_api_key),
 ):
-    """Rebuild the vector index. Requires API key."""
+    """Rebuild the vector index. Requires API key.
+
+    Can rebuild from local filesystem or from GitHub repository.
+    """
+    # Default to github source if GITHUB_TOKEN is configured
+    source = "local"
+    if body and body.source:
+        source = body.source
+    elif get_github_client() is not None:
+        source = "github"
+
     try:
-        result = index_service.rebuild(verbose=False)
-        return RebuildResponse(**result)
+        if source == "github":
+            # Rebuild from GitHub
+            result = await _rebuild_from_github(index_service)
+        else:
+            # Rebuild from local filesystem
+            result = index_service.rebuild(verbose=False)
+
+        return RebuildResponse(
+            success=result.get("success", True),
+            documents_processed=result.get("documents_processed", 0),
+            chunks_indexed=result.get("chunks_indexed", 0),
+            duration_seconds=result.get("duration_seconds", 0),
+            errors=result.get("errors", []),
+            source=source,
+        )
     except Exception as e:
         raise HTTPException(
             status_code=500,
             detail={"error": "REBUILD_FAILED", "message": str(e)},
         )
+
+
+async def _rebuild_from_github(index_service: IndexService) -> dict:
+    """Fetch markdown files from GitHub and rebuild the index."""
+    from datetime import datetime
+    import tempfile
+    import shutil
+
+    start_time = datetime.now()
+    errors = []
+
+    github_client = get_github_client()
+    if github_client is None:
+        raise GitHubConfigurationError("GitHub integration not configured")
+
+    # Fetch list of all markdown files from GitHub
+    try:
+        md_files = await github_client.list_markdown_files_recursive("knowledge")
+    except Exception as e:
+        raise Exception(f"Failed to list GitHub files: {e}")
+
+    if not md_files:
+        return {
+            "success": True,
+            "documents_processed": 0,
+            "chunks_indexed": 0,
+            "duration_seconds": (datetime.now() - start_time).total_seconds(),
+            "errors": ["No markdown files found in knowledge/ directory"],
+        }
+
+    # Create a temporary directory to store files
+    temp_dir = Path(tempfile.mkdtemp(prefix="flightskb_github_"))
+
+    try:
+        # Download each file
+        for file_path in md_files:
+            try:
+                github_file = await github_client.read_file(file_path)
+
+                # Create local directory structure
+                local_path = temp_dir / file_path
+                local_path.parent.mkdir(parents=True, exist_ok=True)
+
+                # Write file content
+                local_path.write_text(github_file.content)
+            except Exception as e:
+                errors.append(f"Failed to fetch {file_path}: {e}")
+
+        # Create a temporary IndexService pointing to the temp directory
+        from src.services.index import IndexService as TempIndexService
+
+        temp_index_service = TempIndexService(
+            index_dir=index_service.index_dir,
+            knowledge_dir=temp_dir / "knowledge",
+        )
+
+        # Rebuild from the temporary directory
+        result = temp_index_service.rebuild(verbose=False)
+        result["errors"] = errors + result.get("errors", [])
+
+    finally:
+        # Clean up temp directory
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+    result["duration_seconds"] = (datetime.now() - start_time).total_seconds()
+    return result
 
 
 @router.post("/ingest", response_model=IngestResponse)
@@ -260,7 +392,10 @@ async def ingest_content(
     request: Request,
     _: None = Depends(verify_api_key),
 ):
-    """Ingest new content into the knowledge base. Requires API key."""
+    """Ingest new content into the knowledge base. Requires API key.
+
+    Content is saved locally and committed to GitHub for persistence.
+    """
     try:
         # Decode content based on type
         if body.content_type == "text":
@@ -328,12 +463,45 @@ async def ingest_content(
                 },
             )
 
+        # Commit to GitHub if configured
+        github_commit = None
+        github_error = None
+        github_client = get_github_client()
+
+        if github_client is not None:
+            try:
+                # Read the file that was just created
+                local_file = Path(result["file_path"])
+                file_content = local_file.read_text()
+
+                # Determine the GitHub path (relative to repo root)
+                # File is in knowledge/inbox/{kb_id}.md
+                github_path = f"knowledge/inbox/{local_file.name}"
+
+                # Commit to GitHub
+                commit_result = await github_client.create_file(
+                    path=github_path,
+                    content=file_content,
+                    message=f"Add {result['title']} via FlightsKB console",
+                )
+
+                github_commit = GitHubCommitResult(
+                    commit_sha=commit_result.commit_sha,
+                    commit_url=commit_result.commit_url,
+                    file_path=commit_result.file_path,
+                    file_sha=commit_result.file_sha,
+                )
+            except Exception as e:
+                github_error = str(e)
+
         return IngestResponse(
             success=True,
             kb_id=result["kb_id"],
             file_path=result["file_path"],
             title=result["title"],
             chunk_count=result.get("chunk_count", 1),
+            github_commit=github_commit,
+            github_error=github_error,
         )
 
     except HTTPException:
@@ -475,3 +643,42 @@ async def get_file_content(
         content=content,
         frontmatter=fm,
     )
+
+
+@router.get("/github/status", response_model=GitHubStatusResponse)
+async def get_github_status(
+    _: None = Depends(verify_api_key),
+):
+    """Check GitHub integration status. Requires API key."""
+    client = get_github_client()
+
+    if client is None:
+        return GitHubStatusResponse(configured=False)
+
+    try:
+        # Get rate limit to verify token works
+        rate_limit = await client.get_rate_limit()
+
+        # Count knowledge files
+        try:
+            md_files = await client.list_markdown_files_recursive("knowledge")
+            file_count = len(md_files)
+        except Exception:
+            file_count = None
+
+        return GitHubStatusResponse(
+            configured=True,
+            owner=client.config.owner,
+            repo=client.config.repo,
+            branch=client.config.branch,
+            rate_limit_remaining=rate_limit.get("remaining"),
+            knowledge_file_count=file_count,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "GITHUB_ERROR",
+                "message": f"GitHub API error: {str(e)}",
+            },
+        )

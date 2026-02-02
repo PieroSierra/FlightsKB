@@ -52,6 +52,7 @@ export interface RebuildResponse {
   chunks_indexed: number;
   duration_seconds: number;
   errors: string[];
+  source?: "local" | "github";
 }
 
 export interface IngestRequest {
@@ -79,12 +80,21 @@ export interface IngestMetadata {
   confidence: ConfidenceLevel;
 }
 
+export interface GitHubCommitResult {
+  commit_sha: string;
+  commit_url: string;
+  file_path: string;
+  file_sha: string;
+}
+
 export interface IngestResponse {
   success: boolean;
   kb_id: string;
   file_path: string;
   title: string;
   chunk_count: number;
+  github_commit?: GitHubCommitResult;
+  github_error?: string;
 }
 
 export interface ApiError {

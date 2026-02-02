@@ -1,0 +1,35 @@
+# Render Blueprint for FlightsKB
+# https://render.com/docs/blueprint-spec
+#
+# Deploy: Connect this repo to Render and it will auto-detect this file
+
+services:
+  - type: web
+    name: flightskb
+    runtime: python
+    plan: free
+    buildCommand: |
+      cd console && npm ci && npm run build && cd ..
+      pip install -e ".[api]"
+    startCommand: uvicorn src.api.app:create_app --factory --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      # Python version
+      - key: PYTHON_VERSION
+        value: "3.11"
+      # Node version for frontend build
+      - key: NODE_VERSION
+        value: "20"
+      # GitHub integration (required - set manually in dashboard)
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_OWNER
+        sync: false
+      - key: GITHUB_REPO
+        sync: false
+      # API key for protected endpoints (required - set manually in dashboard)
+      - key: FLIGHTSKB_API_KEY
+        sync: false
+      # CORS origins (set after first deploy when you know your URL)
+      - key: FLIGHTSKB_CORS_ORIGINS
+        sync: false

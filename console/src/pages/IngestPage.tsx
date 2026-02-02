@@ -116,18 +116,59 @@ export function IngestPage() {
             <strong>KB ID:</strong> {result.kb_id}
           </p>
           <p>
-            <strong>File Path:</strong> {result.file_path}
-          </p>
-          <p>
             <strong>Title:</strong> {result.title}
           </p>
           <p>
             <strong>Chunks Created:</strong> {result.chunk_count}
           </p>
+
+          {/* GitHub commit info */}
+          {result.github_commit && (
+            <div style={{ marginTop: '12px', padding: '12px', background: 'var(--surface-secondary)', borderRadius: '8px' }}>
+              <p style={{ margin: '0 0 8px 0', fontWeight: 600, color: 'var(--color-success)' }}>
+                Saved to GitHub
+              </p>
+              <p style={{ margin: '0' }}>
+                <a
+                  href={result.github_commit.commit_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: 'var(--color-link)' }}
+                >
+                  View commit on GitHub
+                </a>
+              </p>
+            </div>
+          )}
+
+          {/* GitHub error warning */}
+          {result.github_error && (
+            <div style={{ marginTop: '12px', padding: '12px', background: 'var(--color-warning-bg)', borderRadius: '8px', border: '1px solid var(--color-warning)' }}>
+              <p style={{ margin: '0 0 4px 0', fontWeight: 600, color: 'var(--color-warning)' }}>
+                GitHub sync failed
+              </p>
+              <p style={{ margin: '0', fontSize: '14px' }}>
+                Content saved locally but not synced to GitHub: {result.github_error}
+              </p>
+              <p style={{ margin: '8px 0 0 0', fontSize: '14px', color: 'var(--text-secondary)' }}>
+                The content will persist in this session but may be lost on service restart.
+              </p>
+            </div>
+          )}
+
+          {/* No GitHub configured */}
+          {!result.github_commit && !result.github_error && (
+            <div style={{ marginTop: '12px', padding: '12px', background: 'var(--surface-secondary)', borderRadius: '8px' }}>
+              <p style={{ margin: '0', fontSize: '14px', color: 'var(--text-secondary)' }}>
+                Local file: {result.file_path}
+              </p>
+            </div>
+          )}
+
           <button
             onClick={handleIngestAnother}
             className="bpk-button"
-            style={{ marginTop: '12px' }}
+            style={{ marginTop: '16px' }}
           >
             Ingest Another
           </button>

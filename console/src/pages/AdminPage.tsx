@@ -5,10 +5,13 @@ import { ErrorBanner } from '../components/ErrorBanner';
 import { api, API_URL } from '../services/api';
 import type { RebuildResponse, ApiError } from '../types';
 
+type RebuildSource = 'github' | 'local';
+
 export function AdminPage() {
   const [isRebuilding, setIsRebuilding] = useState(false);
   const [result, setResult] = useState<RebuildResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [rebuildSource, setRebuildSource] = useState<RebuildSource>('github');
 
   const handleRebuild = async () => {
     if (isRebuilding) return; // Prevent concurrent rebuilds
@@ -18,7 +21,7 @@ export function AdminPage() {
     setResult(null);
 
     try {
-      const response = await api.rebuild();
+      const response = await api.rebuild(undefined, rebuildSource);
       setResult(response);
     } catch (err) {
       const apiError = err as ApiError;
@@ -44,9 +47,45 @@ export function AdminPage() {
           Use this after manually editing markdown files or to recover from index corruption.
         </p>
 
+        {/* Rebuild source selector */}
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
+            Rebuild Source
+          </label>
+          <div style={{ display: 'flex', gap: '16px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+              <input
+                type="radio"
+                name="rebuildSource"
+                value="github"
+                checked={rebuildSource === 'github'}
+                onChange={() => setRebuildSource('github')}
+                disabled={isRebuilding}
+              />
+              <span>GitHub (recommended)</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+              <input
+                type="radio"
+                name="rebuildSource"
+                value="local"
+                checked={rebuildSource === 'local'}
+                onChange={() => setRebuildSource('local')}
+                disabled={isRebuilding}
+              />
+              <span>Local filesystem</span>
+            </label>
+          </div>
+          <p style={{ margin: '8px 0 0 0', fontSize: '0.8rem', color: '#68697f' }}>
+            {rebuildSource === 'github'
+              ? 'Fetches all knowledge files from GitHub repository. Best for hosted deployments.'
+              : 'Uses local knowledge/ directory. Best for local development.'}
+          </p>
+        </div>
+
         {isRebuilding && (
           <div className="warning-banner" style={{ marginBottom: '16px' }}>
-            Index rebuild in progress. This may take a few moments depending on the size of your knowledge base.
+            Index rebuild in progress from {rebuildSource === 'github' ? 'GitHub' : 'local files'}. This may take a few moments depending on the size of your knowledge base.
           </div>
         )}
 

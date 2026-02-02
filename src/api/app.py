@@ -6,6 +6,8 @@ from typing import Optional
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from src import __version__
 
@@ -49,9 +51,48 @@ def create_app(
     app.state.knowledge_dir = knowledge_dir or Path(os.environ.get("FLIGHTSKB_KNOWLEDGE_DIR", "knowledge"))
     app.state.api_key = os.environ.get("FLIGHTSKB_API_KEY", "")
 
-    # Include routes
+    # Include routes under /api prefix
     from src.api.routes import router
-    app.include_router(router)
+    app.include_router(router, prefix="/api")
+
+    # Static file serving for console (production deployment)
+    # Determine console dist path relative to this file or from env
+    console_dist = Path(os.environ.get(
+        "FLIGHTSKB_CONSOLE_DIR",
+        Path(__file__).parent.parent.parent / "console" / "dist"
+    ))
+
+    if console_dist.exists():
+        # Mount static assets (JS, CSS, etc.)
+        assets_dir = console_dist / "assets"
+        if assets_dir.exists():
+            app.mount("/assets", StaticFiles(directory=assets_dir), name="console_assets")
+
+        # SPA catch-all route - must be after API routes
+        @app.get("/{full_path:path}")
+        async def serve_spa(full_path: str):
+            """Serve React SPA for all non-API routes."""
+            # Check for specific static files (favicon, etc.)
+            if full_path:
+                file_path = console_dist / full_path
+                if file_path.is_file():
+                    return FileResponse(file_path)
+
+            # Return index.html for all routes (React Router handles routing)
+            index_file = console_dist / "index.html"
+            if index_file.exists():
+                return FileResponse(index_file)
+
+            return {"error": "Console not built", "hint": "Run: cd console && npm run build"}
+
+        # Also handle root path
+        @app.get("/")
+        async def serve_spa_root():
+            """Serve React SPA at root."""
+            index_file = console_dist / "index.html"
+            if index_file.exists():
+                return FileResponse(index_file)
+            return {"error": "Console not built", "hint": "Run: cd console && npm run build"}
 
     return app
 
