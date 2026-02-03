@@ -3,6 +3,7 @@
 import json
 import logging
 import shutil
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -17,6 +18,15 @@ from src.services.chunker import Chunker
 from src.services.embeddings import EmbeddingService
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class FileMove:
+    """Represents a file move from inbox to destination category."""
+
+    original_filename: str
+    destination_category: str
+    new_content: str
 
 COLLECTION_NAME = "flights_kb"
 METADATA_FILE = "rebuild_metadata.json"
@@ -140,7 +150,11 @@ class IndexService:
             results=query_results,
         )
 
-    def _process_inbox_files(self, verbose: bool = False) -> list[str]:
+    def _process_inbox_files(
+        self,
+        verbose: bool = False,
+        track_moves: bool = False,
+    ) -> tuple[list[str], list[FileMove]]:
         """
         Move files from inbox to their destination categories.
 
@@ -149,15 +163,17 @@ class IndexService:
 
         Args:
             verbose: Print progress information.
+            track_moves: If True, track and return information about moved files.
 
         Returns:
-            List of error messages.
+            Tuple of (error messages, file moves if track_moves=True else empty list).
         """
         errors = []
+        moves = []
         inbox_dir = self.knowledge_dir / "inbox"
 
         if not inbox_dir.exists():
-            return errors
+            return errors, moves
 
         for file_path in inbox_dir.glob("*.md"):
             try:
@@ -181,10 +197,13 @@ class IndexService:
                     post.metadata["status"] = "reviewed"
                 post.metadata["updated"] = datetime.now().date().isoformat()
 
+                # Generate the new content
+                new_content = frontmatter.dumps(post)
+
                 # Write to destination
                 dest_file = dest_dir / file_path.name
                 with open(dest_file, "w") as f:
-                    f.write(frontmatter.dumps(post))
+                    f.write(new_content)
 
                 # Remove original file from inbox
                 file_path.unlink()
@@ -192,15 +211,27 @@ class IndexService:
                 if verbose:
                     logger.info(f"Moved {file_path.name} to {destination}/")
 
+                # Track the move if requested
+                if track_moves:
+                    moves.append(FileMove(
+                        original_filename=file_path.name,
+                        destination_category=destination,
+                        new_content=new_content,
+                    ))
+
             except Exception as e:
                 error_msg = f"Failed to process inbox file {file_path.name}: {e}"
                 errors.append(error_msg)
                 if verbose:
                     logger.error(error_msg)
 
-        return errors
+        return errors, moves
 
-    def rebuild(self, verbose: bool = False) -> dict:
+    def rebuild(
+        self,
+        verbose: bool = False,
+        track_moves: bool = False,
+    ) -> dict:
         """
         Rebuild the index from knowledge directory.
 
@@ -209,14 +240,19 @@ class IndexService:
 
         Args:
             verbose: Print progress information.
+            track_moves: If True, include file move information in the result.
 
         Returns:
-            Dictionary with rebuild statistics.
+            Dictionary with rebuild statistics. If track_moves=True,
+            includes 'file_moves' key with list of FileMove objects.
         """
         start_time = datetime.now()
 
         # Process inbox files first - move to destination categories
-        inbox_errors = self._process_inbox_files(verbose=verbose)
+        inbox_errors, file_moves = self._process_inbox_files(
+            verbose=verbose,
+            track_moves=track_moves,
+        )
 
         # Clear existing collection
         try:
@@ -251,13 +287,18 @@ class IndexService:
         }
         self._save_metadata(metadata)
 
-        return {
+        result = {
             "success": True,
             "documents_processed": metadata["document_count"],
             "chunks_indexed": len(chunks),
             "duration_seconds": duration,
             "errors": errors,
         }
+
+        if track_moves:
+            result["file_moves"] = file_moves
+
+        return result
 
     def get_stats(self) -> dict:
         """

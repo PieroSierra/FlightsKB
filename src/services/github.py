@@ -217,6 +217,101 @@ class GitHubContentsClient:
                 file_sha=data["content"]["sha"],
             )
 
+    async def update_file(
+        self,
+        path: str,
+        content: str,
+        message: str,
+        sha: str,
+        branch: Optional[str] = None,
+    ) -> GitHubCommitResult:
+        """
+        Update an existing file in the repository.
+
+        Args:
+            path: File path (e.g., "knowledge/airlines/BA/overview.md")
+            content: New file content (plain text, will be base64 encoded)
+            message: Commit message
+            sha: The blob SHA of the file being replaced (required for updates)
+            branch: Target branch (defaults to config branch)
+
+        Returns:
+            GitHubCommitResult with commit info
+
+        Raises:
+            httpx.HTTPStatusError: 404 if file doesn't exist, 409 if SHA mismatch
+        """
+        encoded_content = base64.b64encode(content.encode("utf-8")).decode("ascii")
+
+        payload = {
+            "message": message,
+            "content": encoded_content,
+            "sha": sha,
+            "branch": branch or self.config.branch,
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.put(
+                self._url(path),
+                headers=self.headers,
+                json=payload,
+                timeout=30.0,
+            )
+            response.raise_for_status()
+
+            data = response.json()
+            return GitHubCommitResult(
+                commit_sha=data["commit"]["sha"],
+                commit_url=data["commit"]["html_url"],
+                file_path=data["content"]["path"],
+                file_sha=data["content"]["sha"],
+            )
+
+    async def delete_file(
+        self,
+        path: str,
+        message: str,
+        sha: str,
+        branch: Optional[str] = None,
+    ) -> GitHubCommitResult:
+        """
+        Delete a file from the repository.
+
+        Args:
+            path: File path (e.g., "knowledge/inbox/old-article.md")
+            message: Commit message
+            sha: The blob SHA of the file being deleted (required)
+            branch: Target branch (defaults to config branch)
+
+        Returns:
+            GitHubCommitResult with commit info (file_path and file_sha will be empty)
+
+        Raises:
+            httpx.HTTPStatusError: 404 if file doesn't exist, 409 if SHA mismatch
+        """
+        payload = {
+            "message": message,
+            "sha": sha,
+            "branch": branch or self.config.branch,
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.delete(
+                self._url(path),
+                headers=self.headers,
+                json=payload,
+                timeout=30.0,
+            )
+            response.raise_for_status()
+
+            data = response.json()
+            return GitHubCommitResult(
+                commit_sha=data["commit"]["sha"],
+                commit_url=data["commit"]["html_url"],
+                file_path=path,
+                file_sha="",
+            )
+
     async def get_rate_limit(self) -> dict:
         """
         Get current rate limit status.

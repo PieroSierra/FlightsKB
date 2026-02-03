@@ -321,7 +321,12 @@ async def rebuild_index(
 
 
 async def _rebuild_from_github(index_service: IndexService) -> dict:
-    """Fetch markdown files from GitHub and rebuild the index."""
+    """Fetch markdown files from GitHub and rebuild the index.
+
+    After rebuilding, syncs any inbox file moves back to GitHub by:
+    1. Deleting files from knowledge/inbox/ that were moved
+    2. Creating files at their new destination categories
+    """
     from datetime import datetime
     import tempfile
     import shutil
@@ -351,6 +356,9 @@ async def _rebuild_from_github(index_service: IndexService) -> dict:
     # Create a temporary directory to store files
     temp_dir = Path(tempfile.mkdtemp(prefix="flightskb_github_"))
 
+    # Track file SHAs for inbox files (needed for deletion)
+    inbox_file_shas = {}
+
     try:
         # Download each file
         for file_path in md_files:
@@ -363,6 +371,10 @@ async def _rebuild_from_github(index_service: IndexService) -> dict:
 
                 # Write file content
                 local_path.write_text(github_file.content)
+
+                # Track SHA for inbox files
+                if file_path.startswith("knowledge/inbox/"):
+                    inbox_file_shas[Path(file_path).name] = github_file.sha
             except Exception as e:
                 errors.append(f"Failed to fetch {file_path}: {e}")
 
@@ -374,9 +386,19 @@ async def _rebuild_from_github(index_service: IndexService) -> dict:
             knowledge_dir=temp_dir / "knowledge",
         )
 
-        # Rebuild from the temporary directory
-        result = temp_index_service.rebuild(verbose=False)
+        # Rebuild from the temporary directory, tracking file moves
+        result = temp_index_service.rebuild(verbose=False, track_moves=True)
         result["errors"] = errors + result.get("errors", [])
+
+        # Sync file moves back to GitHub
+        file_moves = result.pop("file_moves", [])
+        github_sync_results = await _sync_inbox_moves_to_github(
+            github_client,
+            file_moves,
+            inbox_file_shas,
+        )
+        result["errors"].extend(github_sync_results["errors"])
+        result["github_files_moved"] = github_sync_results["files_moved"]
 
     finally:
         # Clean up temp directory
@@ -384,6 +406,81 @@ async def _rebuild_from_github(index_service: IndexService) -> dict:
 
     result["duration_seconds"] = (datetime.now() - start_time).total_seconds()
     return result
+
+
+async def _sync_inbox_moves_to_github(
+    github_client,
+    file_moves: list,
+    inbox_file_shas: dict,
+) -> dict:
+    """Sync inbox file moves to GitHub.
+
+    For each moved file:
+    1. Create the file at the new destination
+    2. Delete the original from inbox
+
+    Args:
+        github_client: GitHubContentsClient instance
+        file_moves: List of FileMove objects from rebuild
+        inbox_file_shas: Dict mapping filename to SHA for inbox files
+
+    Returns:
+        Dict with 'files_moved' count and 'errors' list
+    """
+    errors = []
+    files_moved = 0
+
+    for move in file_moves:
+        filename = move.original_filename
+        destination = move.destination_category
+        new_content = move.new_content
+
+        old_path = f"knowledge/inbox/{filename}"
+        new_path = f"knowledge/{destination}/{filename}"
+        sha = inbox_file_shas.get(filename)
+
+        if not sha:
+            errors.append(f"Cannot sync {filename}: SHA not found for deletion")
+            continue
+
+        try:
+            # First, create the file at the new destination
+            try:
+                await github_client.create_file(
+                    path=new_path,
+                    content=new_content,
+                    message=f"Move {filename} from inbox to {destination}",
+                )
+            except Exception as e:
+                # File might already exist (409), try update instead
+                if "422" in str(e) or "409" in str(e):
+                    # Get the existing file's SHA
+                    existing = await github_client.read_file(new_path)
+                    await github_client.update_file(
+                        path=new_path,
+                        content=new_content,
+                        message=f"Update {filename} in {destination} (moved from inbox)",
+                        sha=existing.sha,
+                    )
+                else:
+                    raise
+
+            # Then, delete the original from inbox
+            await github_client.delete_file(
+                path=old_path,
+                message=f"Remove {filename} from inbox (moved to {destination})",
+                sha=sha,
+            )
+
+            files_moved += 1
+
+        except Exception as e:
+            errors.append(f"Failed to sync {filename} to GitHub: {e}")
+
+    return {
+        "files_moved": files_moved,
+        "errors": errors,
+    }
 
 
 @router.post("/ingest", response_model=IngestResponse)

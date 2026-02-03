@@ -45,6 +45,17 @@ export function QueryPage() {
           To search, enter your query below. To add your own knowledge, go to <Link to="/ingest">Ingest</Link>.
           To connect your prototype to this database, check the <Link to="/connect">Connect</Link> tab.
         </p>
+        <img
+          src={`${import.meta.env.BASE_URL}ConceptualDiagram.jpg`}
+          alt="FlightsKB Conceptual Diagram"
+          style={{
+            marginTop: '24px',
+            maxWidth: '100%',
+            height: 'auto',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+          }}
+        />
       </div>
 
       <SearchForm onSearch={handleSearch} isLoading={isLoading} />
