@@ -289,17 +289,23 @@ class GitHubContentsClient:
         Raises:
             httpx.HTTPStatusError: 404 if file doesn't exist, 409 if SHA mismatch
         """
+        import json
+
         payload = {
             "message": message,
             "sha": sha,
             "branch": branch or self.config.branch,
         }
 
+        # httpx delete() doesn't support json parameter, use content with JSON
+        headers = {**self.headers, "Content-Type": "application/json"}
+
         async with httpx.AsyncClient() as client:
-            response = await client.delete(
+            response = await client.request(
+                "DELETE",
                 self._url(path),
-                headers=self.headers,
-                json=payload,
+                headers=headers,
+                content=json.dumps(payload),
                 timeout=30.0,
             )
             response.raise_for_status()
