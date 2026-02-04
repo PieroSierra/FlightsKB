@@ -22,13 +22,13 @@ export function ConnectionDetails() {
     }
   };
 
-  const curlQuery = `curl -X POST "${API_URL}/query" \\
+  const curlQuery = `curl -X POST "${API_URL}/api/query" \\
   -H "Content-Type: application/json" \\
   -d '{"text": "your search query", "k": 5}'`;
 
-  const curlHealth = `curl "${API_URL}/health"`;
+  const curlHealth = `curl "${API_URL}/api/health"`;
 
-  const curlStats = `curl "${API_URL}/stats"`;
+  const curlStats = `curl "${API_URL}/api/stats"`;
 
   return (
     <div className="connection-details">
@@ -100,42 +100,42 @@ export function ConnectionDetails() {
           <tbody>
             <tr>
               <td><code>GET</code></td>
-              <td><code>/health</code></td>
+              <td><code>/api/health</code></td>
               <td>Health check</td>
             </tr>
             <tr>
               <td><code>POST</code></td>
-              <td><code>/query</code></td>
+              <td><code>/api/query</code></td>
               <td>Search the knowledge base</td>
             </tr>
             <tr>
               <td><code>GET</code></td>
-              <td><code>/stats</code></td>
+              <td><code>/api/stats</code></td>
               <td>Get index statistics</td>
             </tr>
             <tr>
               <td><code>GET</code></td>
-              <td><code>/categories</code></td>
+              <td><code>/api/categories</code></td>
               <td>List available categories</td>
             </tr>
             <tr>
               <td><code>POST</code></td>
-              <td><code>/ingest</code></td>
+              <td><code>/api/ingest</code></td>
               <td>Ingest new content (requires API key)</td>
             </tr>
             <tr>
               <td><code>POST</code></td>
-              <td><code>/rebuild</code></td>
+              <td><code>/api/rebuild</code></td>
               <td>Rebuild the index (requires API key)</td>
             </tr>
             <tr>
               <td><code>GET</code></td>
-              <td><code>/files/tree</code></td>
+              <td><code>/api/files/tree</code></td>
               <td>Get file tree structure</td>
             </tr>
             <tr>
               <td><code>GET</code></td>
-              <td><code>/files/content</code></td>
+              <td><code>/api/files/content</code></td>
               <td>Get file content</td>
             </tr>
           </tbody>
