@@ -27,8 +27,12 @@ export function ConnectionDetails() {
   -H "Content-Type: application/json" \\
   -d '{"text": "your search query", "k": 5}'`;
 
-  // Windows PowerShell version
-  const curlQueryWin = `Invoke-RestMethod -Uri "${API_URL}/api/query" -Method POST -ContentType "application/json" -Body '{"text": "your search query", "k": 5}'`;
+  // Windows PowerShell version (use backtick ` for line continuation)
+  const curlQueryWin = `Invoke-RestMethod \`
+  -Uri "${API_URL}/api/query" \`
+  -Method POST \`
+  -ContentType "application/json" \`
+  -Body '{"text": "your search query", "k": 5}'`;
 
   const curlHealth = `curl "${API_URL}/api/health"`;
 
