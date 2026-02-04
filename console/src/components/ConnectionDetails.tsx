@@ -22,9 +22,15 @@ export function ConnectionDetails() {
     }
   };
 
-  const curlQuery = `curl -X POST "${API_URL}/api/query" \\
+  // Mac/Linux version (single quotes)
+  const curlQueryMac = `curl -X POST "${API_URL}/api/query" \\
   -H "Content-Type: application/json" \\
   -d '{"text": "your search query", "k": 5}'`;
+
+  // Windows CMD version (escaped double quotes)
+  const curlQueryWin = `curl -X POST "${API_URL}/api/query" ^
+  -H "Content-Type: application/json" ^
+  -d "{\\"text\\": \\"your search query\\", \\"k\\": 5}"`;
 
   const curlHealth = `curl "${API_URL}/api/health"`;
 
@@ -62,13 +68,24 @@ export function ConnectionDetails() {
       <div className="connection-section">
         <h3>Query Endpoint</h3>
         <p className="section-description">Search the knowledge base:</p>
+        <p className="section-description" style={{ fontWeight: 500, marginTop: '12px' }}>Mac / Linux:</p>
         <div className="code-block">
-          <pre>{curlQuery}</pre>
+          <pre>{curlQueryMac}</pre>
           <button
             className="copy-button"
-            onClick={() => copyToClipboard(curlQuery, 'query')}
+            onClick={() => copyToClipboard(curlQueryMac, 'query-mac')}
           >
-            {copied === 'query' ? 'Copied!' : 'Copy'}
+            {copied === 'query-mac' ? 'Copied!' : 'Copy'}
+          </button>
+        </div>
+        <p className="section-description" style={{ fontWeight: 500, marginTop: '12px' }}>Windows CMD:</p>
+        <div className="code-block">
+          <pre>{curlQueryWin}</pre>
+          <button
+            className="copy-button"
+            onClick={() => copyToClipboard(curlQueryWin, 'query-win')}
+          >
+            {copied === 'query-win' ? 'Copied!' : 'Copy'}
           </button>
         </div>
       </div>
