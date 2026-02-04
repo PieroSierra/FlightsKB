@@ -27,10 +27,8 @@ export function ConnectionDetails() {
   -H "Content-Type: application/json" \\
   -d '{"text": "your search query", "k": 5}'`;
 
-  // Windows CMD version (escaped double quotes)
-  const curlQueryWin = `curl -X POST "${API_URL}/api/query" ^
-  -H "Content-Type: application/json" ^
-  -d "{\\"text\\": \\"your search query\\", \\"k\\": 5}"`;
+  // Windows PowerShell version
+  const curlQueryWin = `Invoke-RestMethod -Uri "${API_URL}/api/query" -Method POST -ContentType "application/json" -Body '{"text": "your search query", "k": 5}'`;
 
   const curlHealth = `curl "${API_URL}/api/health"`;
 
@@ -78,7 +76,7 @@ export function ConnectionDetails() {
             {copied === 'query-mac' ? 'Copied!' : 'Copy'}
           </button>
         </div>
-        <p className="section-description" style={{ fontWeight: 500, marginTop: '12px' }}>Windows CMD:</p>
+        <p className="section-description" style={{ fontWeight: 500, marginTop: '12px' }}>Windows PowerShell:</p>
         <div className="code-block">
           <pre>{curlQueryWin}</pre>
           <button
