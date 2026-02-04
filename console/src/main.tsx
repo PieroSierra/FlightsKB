@@ -6,7 +6,8 @@ import App from './App';
 
 // Use basename from Vite's base config (set at build time)
 // For Render: '/', for GitHub Pages: '/FlightsKB/'
-const basename = import.meta.env.BASE_URL;
+// In dev mode, always use '/' regardless of BASE_URL
+const basename = import.meta.env.DEV ? '/' : import.meta.env.BASE_URL;
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { QueryPage } from './pages/QueryPage';
 import { IngestPage } from './pages/IngestPage';
@@ -19,6 +19,9 @@ function App() {
         <Route path="stats" element={<StatsPage />} />
         <Route path="admin" element={<AdminPage />} />
       </Route>
+      {/* Redirect /FlightsKB/* to /* for local dev when accessing GitHub Pages URLs */}
+      <Route path="/FlightsKB" element={<Navigate to="/" replace />} />
+      <Route path="/FlightsKB/*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
