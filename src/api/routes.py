@@ -378,6 +378,15 @@ async def _rebuild_from_github(index_service: IndexService) -> dict:
             except Exception as e:
                 errors.append(f"Failed to fetch {file_path}: {e}")
 
+        # Sync downloaded files to local knowledge directory so file browser stays in sync
+        local_knowledge_dir = Path(index_service.knowledge_dir)
+        try:
+            if local_knowledge_dir.exists():
+                shutil.rmtree(local_knowledge_dir)
+            shutil.copytree(temp_dir / "knowledge", local_knowledge_dir)
+        except Exception as e:
+            errors.append(f"Warning: Failed to sync to local knowledge directory: {e}")
+
         # Create a temporary IndexService pointing to the temp directory
         from src.services.index import IndexService as TempIndexService
 
